@@ -47,7 +47,6 @@ class Timer : NSObject
                 
                 // If repeating, add the remainder time to the new cycle of time elapsed
                 _timerTimeElapsed = _timerTimeElapsed - _fireInterval
-                print("Fire with new time elapsed \(_timerTimeElapsed)")
             }
         }
         
