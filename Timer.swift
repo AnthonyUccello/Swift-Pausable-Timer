@@ -5,119 +5,69 @@ import Foundation
 */
 class Timer : NSObject
 {
-    // The last time difference between pausing and unpausing
-    // Is resets each time timer fires
-    // Is used to handle edge case where instead of the callback firing
-    // When it should, it gets skipped because the timer gets invalidated
-    // before firing (seems like a same-frame issue within the NS framework)
-    // This is used to fire a callback if, when paused, the timer should have
-    // fired at least onces before the new timer loop starts
-    private var _lastTimeDifference       :Double!
-    private var _pausedAt                 :Double?
-    private var _startedAt                :Double?
-    private var _timerDifference          :Double?
-    private var _fireInterval             :Double!
-    private var _pauseToResumeTimeInterval:Double!
+    private var _startedAt       :Double?
+    private var _timerTimeElapsed:Double!
+    private var _fireInterval    :Double!
+    private var _lastElapsedTime  :Double!
 
-    private var _timer          :NSTimer!
-    // The fractional timer difference timer that
-    // Handles time difference between pausing
-    // And resuming
-    private var _startAfterTimer:NSTimer!
+    private var _clockTimer :NSTimer!
 
     private var _timerFireCallback:(()->Void)?
     
-    private var _repeats:Bool!
+    private var _repeats :Bool!
+    private var _isPaused:Bool!
 
     /**
-        Creates a timer
+        Creates a timer.
     */
     convenience init(interval:Double, callback:(()->Void)?, repeats:Bool)
     {
         self.init()
+        _isPaused                  = true
         _repeats                   = repeats
-        _lastTimeDifference        = _fireInterval
         _fireInterval              = interval
         _timerFireCallback         = callback
-        _timer                     = NSTimer(timeInterval: _fireInterval, target: self, selector: "timerFired:", userInfo: nil, repeats: repeats)
-        _pauseToResumeTimeInterval = 0
+        _lastElapsedTime           = CACurrentMediaTime()
+        _timerTimeElapsed          = 0
+        _clockTimer                = NSTimer(timeInterval: 0.0001, target: self, selector: "clockCycleUpdate:", userInfo: nil, repeats: true)
+        NSRunLoop.currentRunLoop().addTimer(_clockTimer, forMode: NSRunLoopCommonModes)
+    }
+    
+    func clockCycleUpdate(sender:AnyObject)
+    {
+        // If its playing, add time to time elapsed
+        if (_isPaused == false)
+        {
+            var newTimeInterval = CACurrentMediaTime() - _lastElapsedTime
+            _timerTimeElapsed = _timerTimeElapsed + newTimeInterval
+            
+            if (_timerTimeElapsed >= _fireInterval)
+            {
+                fireCallback()
+                
+                // If repeating, add the remainder time to the new cycle of time elapsed
+                _timerTimeElapsed = _timerTimeElapsed - _fireInterval
+                print("Fire with new time elapsed \(_timerTimeElapsed)")
+            }
+        }
+        
+        _lastElapsedTime = CACurrentMediaTime()
     }
     
     /**
-        Starts the timer. Client should call this once the first time.
+        Starts the timer.
     */
-    func start()
+    func play()
     {
-        NSRunLoop.currentRunLoop().addTimer(_timer, forMode: NSRunLoopCommonModes)
-        _startedAt = CACurrentMediaTime()
+        _isPaused       = false
     }
-    
-    /**
-        Starts the timer after a timer interval. Client should only call this once the first time.
-    */
-    func startAfter(time:Double)
-    {
-        _startAfterTimer = NSTimer(timeInterval: time, target: self, selector: "timerResume:", userInfo: nil, repeats: false)
-        NSRunLoop.currentRunLoop().addTimer(_startAfterTimer, forMode: NSRunLoopCommonModes)
-    }
-    
-    /**
-        Resumes timer. SHOULD NEVER BE CALLED. Must be public
-        for callback to fire.
-    */
-    func timerResume(sender:AnyObject)
-    {
-        start()
-        fireCallback()
-        _lastTimeDifference = _fireInterval
-    }
-    
+
     /**
         Pauses the timer.
     */
     func pause()
     {
-        _timer.invalidate()
-        
-        _pausedAt                  = CACurrentMediaTime()
-        let diff                   = _pausedAt! - _startedAt!
-        _pauseToResumeTimeInterval = _fireInterval - (diff % _fireInterval)
-        
-        if (_startAfterTimer != nil)
-        {
-            // There is a chance that the interval of the start
-            // After timer is so small that it gets invalidated
-            // Before firing, thus negating an entire timer cycle
-            // This checks for that and fires the callback if necessary
-            
-            if (_pauseToResumeTimeInterval > _lastTimeDifference)
-            {
-                fireCallback()
-            }
-            
-            _startAfterTimer.invalidate()
-        }
-        
-        _lastTimeDifference = _pauseToResumeTimeInterval
-    }
-    
-    /**
-        Resumes the timer.
-    */
-    func resume()
-    {
-        // Recreate the timer anew
-        _timer = NSTimer(timeInterval: _fireInterval, target: self, selector: "timerFired:", userInfo: nil, repeats: _repeats)
-
-        startAfter(_pauseToResumeTimeInterval)
-    }
-    
-    /**
-        Callback for timer that calls the fire callback.
-    */
-    func timerFired(sender:AnyObject)
-    {
-        fireCallback()
+        _isPaused     = true
     }
     
     /**
@@ -136,7 +86,6 @@ class Timer : NSObject
     */
     func invalidate()
     {
-        _timer.invalidate()
-        _startAfterTimer.invalidate()
+        _clockTimer.invalidate()
     }
 }
