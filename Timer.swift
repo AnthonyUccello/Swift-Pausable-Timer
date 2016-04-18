@@ -45,8 +45,12 @@ class Timer : NSObject
             {
                 fireCallback()
                 
-                // If repeating, add the remainder time to the new cycle of time elapsed
-                _timerTimeElapsed = _timerTimeElapsed - _fireInterval
+                if _repeats == true{
+                    // If repeating, add the remainder time to the new cycle of time elapsed
+                    _timerTimeElapsed = _timerTimeElapsed - _fireInterval
+                }else{
+                    self.invalidate()
+                }
             }
         }
         
