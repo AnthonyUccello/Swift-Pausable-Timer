@@ -29,7 +29,7 @@ class Timer : NSObject
         _timerFireCallback         = callback
         _lastElapsedTime           = CACurrentMediaTime()
         _timerTimeElapsed          = 0
-        _clockTimer                = NSTimer(timeInterval: 0.0001, target: self, selector: "clockCycleUpdate:", userInfo: nil, repeats: true)
+        _clockTimer                = NSTimer(timeInterval: 0.0001, target: self, selector: #selector(clockCycleUpdate), userInfo: nil, repeats: true)
         NSRunLoop.currentRunLoop().addTimer(_clockTimer, forMode: NSRunLoopCommonModes)
     }
     
@@ -38,7 +38,7 @@ class Timer : NSObject
         // If its playing, add time to time elapsed
         if (_isPaused == false)
         {
-            var newTimeInterval = CACurrentMediaTime() - _lastElapsedTime
+            let newTimeInterval = CACurrentMediaTime() - _lastElapsedTime
             _timerTimeElapsed = _timerTimeElapsed + newTimeInterval
             
             if (_timerTimeElapsed >= _fireInterval)
